@@ -1,0 +1,89 @@
+const router = require('express').Router();
+const bodyParser = require('body-parser');
+const axios = require('axios');
+const requestIp = require('request-ip');
+const cookieParser = require('cookie-parser');
+const authMiddleware = require('../middleware/authMiddleware');
+const profileMiddleware = require('../middleware/profileMiddleware');
+const sendDataHandler = require('../middleware/sendDataHandler');
+const { getFpKey } = require('../util/keyManager');
+const header = require('../config/header');
+const generateTUID = require('../util/generateTuid');
+
+router.use(requestIp.mw());
+router.use(bodyParser.urlencoded({ extended: true }));
+router.use(bodyParser.json());
+router.use(cookieParser());
+
+/****************************** 토큰 로그인 ***************************/
+
+/**************** 토큰 검증 *****************/
+router.get('/auth/tk', authMiddleware, sendDataHandler);
+
+/***************** 프로필 조회 **************/
+router.post('/auth/profile', profileMiddleware);
+
+/**************** 핑거프린트 암호화/복호화 키 전송 */
+router.get('/fp/get-sk', async (req, res) => {
+  try {
+    const key = await getFpKey();
+    return res.send({ ok: true, payload: key });
+  } catch (error) {
+    console.log('지문 암호화 키 조회 실패: ', error);
+    return res.send({
+      ok: false,
+      message: '지문 암호화 키 조회 실패: ',
+      error,
+    });
+  }
+});
+
+/*************** 핑거 프린트 전송 ************/
+router.post('/auth/fp', async (req, res) => {
+  try {
+    if (!req.headers?.authorization) {
+      console.log('유저 지문 없음');
+      return res.status(401).send({
+        ok: false,
+        state: 'fail',
+        message: '유저 지문 없음',
+      });
+    }
+    if (!req.body) {
+      return res.status(401).send({
+        ok: false,
+        state: 'fail',
+        message: '유저 아이디 없음',
+      });
+    }
+
+    const userId = req.body.data;
+    const fp = req.headers['authorization'];
+    /** 핑거프린트(지문) 암호화 키 */
+    const fpSkey = await getFpKey();
+    const clientIp = req.clientIp;
+    const tuid = generateTUID();
+    /** api 요청 공통 헤더 */
+    const headers = header('POST', userId, tuid, fp, fpSkey, clientIp);
+    const DATA = {
+      LANG: 'KR',
+      DEBUG: 'N',
+      ID: userId,
+      FGPR: fp,
+      UUIP: clientIp,
+      SKEY: fpSkey,
+    };
+    const API_URL = process.env.SEND_FP;
+    const response = await axios.post(`${API_URL}`, DATA, { headers });
+
+    if (response.data.validity !== 'true') {
+      return new Error('Failed to send FP: ', response?.data?.error);
+    }
+    return res.send({ ok: true });
+  } catch (error) {
+    console.log('failed to send FP: ', error.message);
+    return res.send({ ok: false, message: error.message });
+  }
+});
+
+module.exports = router;
