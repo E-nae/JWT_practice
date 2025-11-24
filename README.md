@@ -1,7 +1,7 @@
 # JWT_practice
 JWT 프로젝트
 
-1. React, Node Express, jsonwebtoken, axios, Redis, mysql 사용
+1. React, Typescript, Node Express, jsonwebtoken, axios, Redis, mysql 사용
 2. 프로세스
    1) 아이디/패스워드 로그인
    2) 액세스/리프레시 토큰 발급 및 리프레시 토큰 DB저장
