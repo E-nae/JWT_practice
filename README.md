@@ -25,9 +25,9 @@ JWT 프로젝트
 
 2. 설계 전략
   1) 프론트엔드 설계
-     (1) 상태 관리: Redux
-        
-     (2) 캐싱: tanstack query 
+    (1) 상태 관리: Redux
+    (2) 캐싱: tanstack query 
   3) 백엔드 설계
+     (1) jwt 인증: jsonwebtoken
         
 
